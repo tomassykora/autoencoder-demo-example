@@ -1,7 +1,7 @@
 /* 
  * Tomas Sykora,
  * tms.sykora@gmail.com,
-  */
+ */
 
 #include <iostream>
 #include <sstream>
@@ -12,8 +12,6 @@
 #include <cmath>
 #include <random>
 #include <chrono>
-
-#define STEP_SIZE 0.01
 
 typedef std::vector<std::vector<double>> Matrix2D;
 
@@ -140,6 +138,8 @@ private:
 	std::vector<Layer> layers;
 	std::vector<unsigned> topology;
 	Matrix2D input;
+
+	double training_step;
 };
 
 NNetwork::NNetwork(const std::vector<unsigned> top)
@@ -154,8 +154,12 @@ NNetwork::NNetwork(const std::vector<unsigned> top)
 	}
 	std::cout << ") ++" << std::endl;
 
-	// Create required layers:
+	training_step = 0.1;
 
+	std::cout << "\n Set value for training step): ";
+	std::cin >> training_step; // doesn't check the correct input as it's just a demo app
+
+	// Create required layers:
 	for (int layerNum = 0; layerNum < topology.size(); ++layerNum)
 	{	
 		unsigned nextL = (layerNum == topology.size() - 1) ? 1 : topology[layerNum + 1];
@@ -188,7 +192,7 @@ Matrix2D NNetwork::normalize(Matrix2D x)
 		{
 			// Normalization:
 			double val = (x[i][j] - mins[j]) / (maxs[j] - mins[j]);
-			row.push_back(val);			
+			row.push_back(val);
 		}
 		x_normalized.push_back(row);
 	}
@@ -257,7 +261,29 @@ Matrix2D NNetwork::feedForward(unsigned index_l)
 
 void NNetwork::backPropagate(unsigned index)
 {
-	std::cout << "   5000 epochs of training tarted.\n";
+	std::cout << "\n   An example output with random weights (before training): \n";
+
+	std::vector<double> in = (index == 0) ? input[0]
+										 : layers[index].getOutputs()[0];
+	Matrix2D out = feedForward(index);
+
+	std::cout << "input = [ ";
+	for (int i = 0; i < in.size(); ++i)
+	{
+		std::cout << in[i] << " ";
+	}
+	std::cout << "]\n";
+	std::cout << "output = [ ";
+	for (int i = 0; i < out.back().size(); ++i)
+	{
+		std::cout << out[0][i] << " ";
+	}
+	std::cout << "]\n";
+
+
+	// Traning
+
+	std::cout << "\n   5000 epochs of training started.\n";
 
 	int epoch = 0;
 	double Err;
@@ -307,7 +333,7 @@ void NNetwork::backPropagate(unsigned index)
 			{
 				for (int j = 0; j < x.size(); ++j) // through input x
 				{
-					double d_w = STEP_SIZE * layers[index + 1].getDelta(i) * x[j];
+					double d_w = training_step * layers[index + 1].getDelta(i) * x[j];
 					layers[index].updateWeight(d_w, j, i);
 				}
 			}
@@ -317,7 +343,7 @@ void NNetwork::backPropagate(unsigned index)
 			{
 				for (int j = 0; j < layers[index + 1].size(); ++j) // through outputs of the hidden layer
 				{
-					double d_w = STEP_SIZE * layers[index].getDecoderDelta(i) * layers[index + 1].getOutput(d, j);
+					double d_w = training_step * layers[index].getDecoderDelta(i) * layers[index + 1].getOutput(d, j);
 					layers[index].updateDecoderWeight(d_w, j, i);
 				}
 			}	
@@ -331,7 +357,7 @@ void NNetwork::backPropagate(unsigned index)
 	} while (epoch < 5000);
 
 	std::cerr << std::endl;
-	std::cout << "\n  The layer " << index << " was trained. An example output given the input data: \n";
+	std::cout << "\n  The layer " << index << " was trained. An example output given the input data: \n\n";
 
 	std::vector<double> x = (index == 0) ? input[0]
 										 : layers[index].getOutputs()[0];
@@ -355,7 +381,8 @@ void NNetwork::autoEncode(Matrix2D x)
 {
 	input = normalize(x);
 
-	std::cout << "Input data (x) having format: [" << x.size() << ", " << x.back().size() << "]\n";
+	std::cout << "\nInput data (x) having format: [" << x.size() << ", " << x.back().size() << "]\n";
+
 	std::cout << "\n * * * Backpropagation : \n";
 
 	for (int layer = 0; layer < topology.size() - 1; ++layer)
@@ -380,7 +407,7 @@ Matrix2D makeUniformData(unsigned n, unsigned size)
 		std::vector<double> row;
 		for (int j = 0; j < n; ++j)
 		{
-			std::uniform_real_distribution<double> distribution(j*5, 25);
+			std::uniform_real_distribution<double> distribution(j*5, j*5+10); // just some numbers to generate for demonstration ...
     		row.push_back(distribution(generator));
 		}
 		x.push_back(row);	
@@ -475,7 +502,7 @@ int main(int argc, char const *argv[])
 		}
 
 		// Create random training data
-		x = makeUniformData(topology[0], 5000);
+		x = makeUniformData(topology[0], 1000);
 	}
 	else 
 	{
